@@ -296,26 +296,35 @@ function dir.walk(root,bottom_up,follow_links)
     end
 
     local to_scan = { root }
-    local to_return = {}
-    local iter = function()
-        while #to_scan > 0 do
-            local current_root = table.remove(to_scan)
-            local dirs,files = _dirfiles(current_root, attrib)
-            for _, d in ipairs(dirs) do
-                table.insert(to_scan, current_root..path.sep..d)
-            end
-            if not bottom_up then
-                return current_root, dirs, files
-            else
+    if bottom_up then
+        local to_return = {}
+        return function()
+            while #to_scan > 0 do
+                local current_root = table.remove(to_scan)
+                local dirs,files = _dirfiles(current_root, attrib)
+                for _, d in ipairs(dirs) do
+                    table.insert(to_scan, current_root..path.sep..d)
+                end
                 table.insert(to_return, { current_root, dirs, files })
             end
+            if #to_return > 0 then
+                return utils.unpack(table.remove(to_return))
+            end
         end
-        if #to_return > 0 then
-            return utils.unpack(table.remove(to_return))
+    else
+        local pending_dirs, pending_root = {}
+        return function()
+            for _, dir in pairs(pending_dirs) do
+                table.insert(to_scan, pending_root..path.sep..dir)
+            end
+            if #to_scan > 0 then
+                pending_root = table.remove(to_scan)
+                local dirs,files = _dirfiles(pending_root, attrib)
+                pending_dirs = dirs
+                return pending_root, dirs, files
+            end
         end
     end
-
-    return iter
 end
 
 --- remove a whole directory tree.
